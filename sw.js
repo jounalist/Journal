@@ -1,9 +1,10 @@
 // Erhöhe die Versionsnummer, wenn du Dateien änderst, damit alle Geräte die neue Fassung laden.
-const V = 'bj-v1';
+const V = 'bj-v2';
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon.svg'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(V).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));
+  // Jede Datei einzeln: fehlt ein Icon, wird trotzdem installiert
+  e.waitUntil(caches.open(V).then(c => Promise.all(CORE.map(f => c.add(f).catch(() => {})))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -18,11 +19,17 @@ self.addEventListener('fetch', e => {
   const r = e.request;
   if (r.method !== 'GET') return;
   const u = new URL(r.url);
-  // Seite: erst Netzwerk (immer aktuell), offline aus dem Cache
+  // Seite: Netzwerk (max. 4 s), sonst Cache
   if (r.mode === 'navigate') {
     e.respondWith(
-      fetch(r).then(res => { const cp = res.clone(); caches.open(V).then(c => c.put('index.html', cp)); return res; })
-        .catch(() => caches.match('index.html'))
+      new Promise(resolve => {
+        const t = setTimeout(() => caches.match('index.html').then(h => h && resolve(h)), 4000);
+        fetch(r).then(res => {
+          clearTimeout(t);
+          if (res.ok) { const cp = res.clone(); caches.open(V).then(c => c.put('index.html', cp)); }
+          resolve(res);
+        }).catch(() => { clearTimeout(t); caches.match('index.html').then(h => resolve(h || Response.error())); });
+      })
     );
     return;
   }
@@ -38,4 +45,10 @@ self.addEventListener('fetch', e => {
       })
     );
   }
+});
+
+// Tipp auf eine Benachrichtigung öffnet die App
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window' }).then(cs => cs.length ? cs[0].focus() : self.clients.openWindow('./')));
 });
