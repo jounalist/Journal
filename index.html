@@ -445,7 +445,7 @@ function modeV(){
  <input type="range" min="0" max="100" value="${Math.round((S.vol??.5)*100)}" oninput="setVol(this.value)" style="margin-top:12px"></div>
  <div class="card"><label class="muted" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><b style="font-size:16px;color:var(--ink)">Tagesziel</b><span>Karten<input type="number" min="1" max="500" value="${Math.max(1,S.goal||20)}" onchange="S.goal=Math.min(500,Math.max(1,+this.value||20));save()" style="width:90px;padding:6px 8px;margin-left:8px"></span></label></div>
  <div class="card"><label class="muted" style="display:flex;align-items:center;gap:8px"><b style="font-size:16px;color:var(--ink)">Erinnerung</b> ab<input type="time" id="rem" value="${S.rem||'19:00'}" onchange="S.rem=this.value;save()" style="width:120px;padding:6px 8px"></label><div class="muted" style="margin-top:6px">Zeigt auf „Heute" eine Warnung, wenn deine Serie in Gefahr ist.</div></div>
- <div class="card"><b>Sichern &amp; Teilen</b><div class="muted" style="margin:6px 0 10px">${bkInfo()}</div><button class="solid" style="width:100%" onclick="shareSheet()">Teilen / Sichern</button></div>${notifCard()}`;
+ <div class="card"><b>Sichern &amp; Teilen</b><div class="muted" style="margin:6px 0 10px">${bkInfo()}</div><button class="solid" style="width:100%" onclick="shareSheet()">Teilen / Sichern</button></div>${notifCard()}${fsCard()}`;
 }
 window.setMode=m=>{S.theme.mode=m;applyTheme();render()};
 function nowPx(){const m=new Date();return (m.getHours()*60+m.getMinutes())/60*44}
@@ -824,6 +824,11 @@ window.srUp=()=>{const q=($('#q').value||'').trim().toLowerCase(),o=$('#sr');if(
 /* ---------- Hinweise ---------- */
 const NS=new Set();
 const notify=(t,b)=>{try{if(navigator.serviceWorker&&navigator.serviceWorker.controller){navigator.serviceWorker.ready.then(r=>r.showNotification(t,{body:b,icon:'icon-192.png'})).catch(()=>{try{new Notification(t,{body:b})}catch(e){}});return}}catch(e){}try{new Notification(t,{body:b})}catch(e){}};
+const fsOn=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
+const fsOk=()=>!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen);
+const fsCard=()=>`<div class="card"><b>Vollbild</b><div class="muted" style="margin:6px 0 10px">${fsOk()?'Blendet Leisten des Geräts aus, so weit es dein Gerät zulässt. Zum Beenden von oben nach unten wischen.':'Auf diesem Gerät nicht verfügbar.'}</div>${fsOk()?`<button class="${fsOn()?'solid':''}" style="width:100%" onclick="togFs()">${fsOn()?'Vollbild beenden':'Vollbild starten'}</button>`:''}</div>`;
+window.togFs=async()=>{try{const d=document,e=d.documentElement;if(fsOn()){await(d.exitFullscreen||d.webkitExitFullscreen).call(d)}else{await(e.requestFullscreen||e.webkitRequestFullscreen).call(e,{navigationUI:'hide'})}}catch(x){toast('Vollbild ist hier nicht möglich')}setTimeout(render,150)};
+document.addEventListener('fullscreenchange',()=>{if(view==='mode')render()});
 const notifOn=()=>{try{return !!S.notif&&Notification.permission==='granted'}catch(e){return false}};
 const notifCard=()=>{const ok=typeof Notification!=='undefined';return `<div class="card"><b>Hinweise</b><div class="muted" style="margin:6px 0 10px">${ok?'Erinnerungen als Benachrichtigung – sie kommen nur, solange die App geöffnet ist.':'Auf diesem Gerät nicht verfügbar.'}</div>${ok?`<button class="${notifOn()?'solid':''}" style="width:100%" onclick="togNotif()">${notifOn()?'Aktiv ✓ (ausschalten)':'Aktivieren'}</button>`:''}</div>`};
 window.togNotif=async()=>{try{if(S.notif){S.notif=false}else{const r=await Notification.requestPermission();S.notif=r==='granted';toast(S.notif?'Hinweise sind an':'Nicht erlaubt – bitte in den Browser-Einstellungen freigeben')}}catch(e){toast('Hinweise sind hier nicht möglich')}render()};
